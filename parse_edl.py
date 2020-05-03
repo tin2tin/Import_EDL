@@ -319,7 +319,7 @@ class EditDecision:
         self.filename = ""
 
         self.custom_data = []  # use for storing any data you want (blender strip for eg)
-
+        print(text)
         if text is not None:
             self.read(text, fps)
 
@@ -352,11 +352,42 @@ class EditDecision:
         return txt
 
     def read(self, line, fps):
-        line = line.split()
+        print (len(line))
+        print("from end: "+str(len(line)-line.find(":")))
+        if len(line) == 77: # a proper formatted edl edit line
+            chunk = line
+            line = []
+            line.append(chunk[0:3]) # cut number
+            line.append(chunk[5:12]) # filename
+            if chunk[14:18].strip() is not "": line.append(chunk[14:18].strip()) # A/V channel
+            if chunk[20:22].strip() is not "": line.append(chunk[20:22].strip()) # transition
+            if chunk[23:25].strip() is not "": line.append(chunk[23:25].strip()) # transition type
+            if chunk[27:28].strip() is not "": line.append(chunk[27:28].strip()) # duration
+            line.append(chunk[29:40]) # srcIn 
+            line.append(chunk[41:52]) # srcOut
+            line.append(chunk[53:64]) # recIn
+            line.append(chunk[65:76]) # recOut
+        # elif chunk[14:14] not in {'A', 'V', 'B', 'v', 'a', 'v', 'b'} and (len(line)-line.find(":") == 45): #filename isn't 8 characters, so A/V chanel isn't in the right spot
+            # line.rfind()
+            # chunk = line
+            # line = []
+            # line.append(chunk[0:3]) # cut number
+            # line.append(chunk[5:len(line)-62]) # filename - hoping the right side is correctly formatted. 
+            # fnl = (len(line)-62)-5
+            # if chunk[14+fnl:18+fnl].strip() is not "": line.append(chunk[14+fnl:18+fnl].strip()) # A/V channel
+            # if chunk[20+fnl:22+fnl].strip() is not "": line.append(chunk[20+fnl:22+fnl].strip()) # transition
+            # if chunk[23+fnl:25+fnl].strip() is not "": line.append(chunk[23+fnl:25+fnl].strip()) # transition type
+            # if chunk[27+fnl:28+fnl].strip() is not "": line.append(chunk[27+fnl:28+fnl].strip()) # duration
+            # line.append(chunk[29+fnl:40+fnl]) # srcIn 
+            # line.append(chunk[41+fnl:52+fnl]) # srcOut
+            # line.append(chunk[53+fnl:64+fnl]) # recIn
+            # line.append(chunk[65+fnl:76+fnl]) # recOut
+        else:
+            line = line.split()
         index = 0
         self.number = int(line[index])
         index += 1
-        self.reel = line[index].lower()
+        self.reel = line[index]#.lower()
         index += 1
 
         # AA/V can be an edit type
@@ -494,8 +525,11 @@ class EditList:
 
         has_m2 = False
 
-        for line in file:
-            line = " ".join(line.split())
+        file_lines = file.readlines()
+
+        for index,line in enumerate(file_lines):
+            if len(line) != 77:
+                line = " ".join(line.split())
 
             if not line or line.startswith(("*", "#")):
                 continue
@@ -510,6 +544,8 @@ class EditList:
                 print("Ignoring:", line)
             else:
                 self.edits.append(EditDecision(line, fps))
+                if file_lines[index+1].startswith('*'):
+                    self.edits[-1:][0].reel = file_lines[index+1].split(':')[1].strip(' ').strip('\r').strip('\n')
                 edits_m2.append(self.edits[-1])
 
         if has_m2:
