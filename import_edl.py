@@ -134,8 +134,8 @@ def load_edl(scene, filename, reel_files, reel_offsets, global_offset):
         # src_end = int(edit.srcOut) + frame_offset
         # src_length = src_end - src_start
 
-        rec_start = int(edit.recIn) + 1
-        rec_end = int(edit.recOut) + 1
+        rec_start = int(edit.recIn)
+        rec_end = int(edit.recOut)
         rec_length = rec_end - rec_start
 
         # apply global offset
@@ -153,7 +153,95 @@ def load_edl(scene, filename, reel_files, reel_offsets, global_offset):
         offset_start = src_start - int(src_start * scale)  # works for scaling up AND down
 
         if edit.transition_type == parse_edl.TRANSITION_CUT and (not elist.overlap_test(edit)):
-            track = 1
+            track = 6
+
+        strip = None
+        final_strips = []
+
+        path_full = reel_files[edit.reel]
+        path_dironly, path_fileonly = os.path.split(path_full)
+
+
+        if edit.edit_type & (parse_edl.EDIT_AUDIO | parse_edl.EDIT_AUDIO_STEREO | parse_edl.EDIT_VIDEO_AUDIO):
+
+            if scale == 1.0:  # TODO - scaled audio
+
+                try:
+                    strip = sequence_editor.sequences.new_sound(
+                            name=edit.reel,
+                            filepath=path_full,
+                            channel=track-5,
+                            frame_start=unedited_start + offset_start)
+                    strip_list.append(strip)
+                except:
+
+                    # See if there is a wave file there
+                    path_full_wav = replace_ext(path_full, "wav")
+                    # try:
+                    strip = sequence_editor.sequences.new_sound(
+                            name=edit.reel,
+                            filepath=path_full_wav,
+                            channel=track-5,
+                            frame_start=unedited_start + offset_start)
+                    strip_list.append(strip)
+                    # except:
+                    #    return "Invalid input for audio"
+
+                final_strip = strip
+
+                # Copied from above
+                final_strip.update()
+                final_strip.frame_offset_start = rec_start - final_strip.frame_final_start
+                final_strip.frame_offset_end = rec_end - final_strip.frame_final_end
+                final_strip.update()
+                final_strip.frame_offset_end += (final_strip.frame_final_end - rec_end)
+                final_strip.update()
+
+                if edit.transition_type == parse_edl.TRANSITION_DISSOLVE:
+                    apply_dissolve_fcurve(final_strip, edit.transition_duration)
+
+                final_strips.append(final_strip)
+
+
+    track = 0
+
+    edits = elist.edits[:]
+    # edits.sort(key = lambda edit: int(edit.recIn))
+    free_channel= get_open_channel(bpy.context.scene)
+
+    prev_edit = None
+    for edit in edits:
+        print(edit)
+        if edit.reel.lower() in parse_edl.BLACK_ID:
+            frame_offset = 0
+        else:
+            frame_offset = reel_offsets[edit.reel]
+
+        src_start = int(edit.srcIn) + frame_offset
+        # UNUSED
+        # src_end = int(edit.srcOut) + frame_offset
+        # src_length = src_end - src_start
+
+        rec_start = int(edit.recIn)
+        rec_end = int(edit.recOut)
+        rec_length = rec_end - rec_start
+
+        # apply global offset
+        rec_start += global_offset
+        rec_end += global_offset
+
+        # print(src_length, rec_length, src_start)
+
+        if edit.m2 is not None:
+            scale = fps / edit.m2.fps
+        else:
+            scale = 1.0
+
+        unedited_start = rec_start - src_start
+        offset_start = src_start - int(src_start * scale)  # works for scaling up AND down
+
+        if edit.transition_type == parse_edl.TRANSITION_CUT and (not elist.overlap_test(edit)):
+            track = 6
 
         strip = None
         final_strips = []
@@ -163,7 +251,7 @@ def load_edl(scene, filename, reel_files, reel_offsets, global_offset):
                     type='COLOR',
                     frame_start=rec_start,
                     frame_end=rec_start + max(1, rec_length),
-                    channel=track + 1)
+                    channel=free_channel)
             strip_list.append(strip)
             final_strips.append(strip)
             strip.color = 0.0, 0.0, 0.0
@@ -171,7 +259,7 @@ def load_edl(scene, filename, reel_files, reel_offsets, global_offset):
         else:
             path_full = reel_files[edit.reel]
             path_dironly, path_fileonly = os.path.split(path_full)
-
+            #track = get_open_channel(bpy.context.scene)
             if edit.edit_type & (parse_edl.EDIT_VIDEO | parse_edl.EDIT_VIDEO_AUDIO):
                 # and edit.transition_type == parse_edl.TRANSITION_CUT:
 
@@ -179,7 +267,7 @@ def load_edl(scene, filename, reel_files, reel_offsets, global_offset):
                 strip = sequence_editor.sequences.new_movie(
                         name=edit.reel,
                         filepath=path_full,
-                        channel=track + 1,
+                        channel=free_channel,
                         frame_start=unedited_start + offset_start)
                 strip_list.append(strip)
                 # except:
@@ -243,46 +331,6 @@ def load_edl(scene, filename, reel_files, reel_offsets, global_offset):
 
                 final_strips.append(final_strip)
 
-            if edit.edit_type & (parse_edl.EDIT_AUDIO | parse_edl.EDIT_AUDIO_STEREO | parse_edl.EDIT_VIDEO_AUDIO):
-
-                if scale == 1.0:  # TODO - scaled audio
-
-                    try:
-                        strip = sequence_editor.sequences.new_sound(
-                                name=edit.reel,
-                                filepath=path_full,
-                                channel=track + 6,
-                                frame_start=unedited_start + offset_start)
-                        strip_list.append(strip)
-                    except:
-
-                        # See if there is a wave file there
-                        path_full_wav = replace_ext(path_full, "wav")
-
-                        # try:
-                        strip = sequence_editor.sequences.new_sound(
-                                name=edit.reel,
-                                filepath=path_full_wav,
-                                channel=track + 6,
-                                frame_start=unedited_start + offset_start)
-                        strip_list.append(strip)
-                        # except:
-                        #    return "Invalid input for audio"
-
-                    final_strip = strip
-
-                    # Copied from above
-                    final_strip.update()
-                    final_strip.frame_offset_start = rec_start - final_strip.frame_final_start
-                    final_strip.frame_offset_end = rec_end - final_strip.frame_final_end
-                    final_strip.update()
-                    final_strip.frame_offset_end += (final_strip.frame_final_end - rec_end)
-                    final_strip.update()
-
-                    if edit.transition_type == parse_edl.TRANSITION_DISSOLVE:
-                        apply_dissolve_fcurve(final_strip, edit.transition_duration)
-
-                    final_strips.append(final_strip)
 
         if final_strips:
             for strip in final_strips:
@@ -291,7 +339,7 @@ def load_edl(scene, filename, reel_files, reel_offsets, global_offset):
                 edit.custom_data[:] = final_strips
                 # track = not track
                 prev_edit = edit
-            track += 1
+            #track += 1
 
         # break
 
@@ -300,6 +348,19 @@ def load_edl(scene, filename, reel_files, reel_offsets, global_offset):
         strip.select = True
 
     return ""
+
+def get_open_channel(scene):
+    """Find first free channel"""
+    channels = []
+    try:
+        for strip in scene.sequence_editor.sequences_all:
+            channels.append(strip.channel)
+        if len(channels) > 0:
+            return max(channels) + 1
+        else:
+            return 1
+    except AttributeError:
+        return 1
 
 
 def _test():
