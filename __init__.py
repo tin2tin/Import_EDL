@@ -42,10 +42,57 @@ from bpy.props import (
 from bpy.types import Operator
 
 # ----------------------------------------------------------------------------
+# Panel to show EDL Import UI
+
+class SEQUENCER_PT_import_edl(bpy.types.Panel):
+    """Path to an CMX 3600 EDL(.edl) file"""
+    bl_label = "EDL Import"
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        scene = context.scene
+        edl_import_info = scene.edl_import_info
+
+        col = layout.column()
+        #col.prop(edl_import_info, "frame_offset")
+        col.prop(edl_import_info, "filepath", text="EDL File")
+        
+        subcol = layout.column()
+        subcol.operator(ReloadEDL.bl_idname, text="Check For Missing Files")
+        if not edl_import_info.filepath == "":
+            subcol.enabled = True
+        else:
+            subcol.enabled = False
+
+        box = layout.box()
+        reel = None
+        for reel in scene.edl_import_info.reels:
+            col = box.column(align=True)
+            if reel.filepath == "":
+                col.prop(reel, "filepath", text="Missing: "+reel.name)
+            else:
+                col.prop(reel, "filepath", text="Found: "+reel.name)
+
+        if reel is None:
+            col = layout.column(align=True)
+            col.operator(ImportEDL.bl_idname)
+            col.enabled = False
+        else:
+            box.enabled = True
+            box.operator(FindReelsEDL.bl_idname)
+            layout.operator(ImportEDL.bl_idname)
+
+
+# ----------------------------------------------------------------------------
 # Main Operators
 
 
 class ReloadEDL(Operator):
+    """Reloads the EDL file and refreshes all reels"""
     bl_idname = "sequencer.import_edl_refresh"
     bl_label = "Refresh Reels"
 
@@ -95,7 +142,7 @@ class FindReelsEDL(Operator):
     """Scan a path for missing reel files, """ \
     """ Matching by reel name and existing filename when set"""
     bl_idname = "sequencer.import_edl_findreel"
-    bl_label = "Find Missing Reel Files"
+    bl_label = "Scan For Missing Files"
     directory: StringProperty(
             subtype='DIR_PATH',
             )
@@ -211,9 +258,9 @@ class FindReelsEDL(Operator):
 
 
 class ImportEDL(Operator):
-    """Import an EDL into the sequencer"""
+    """Import an EDL file into the sequencer"""
     bl_idname = "sequencer.import_edl"
-    bl_label = "Import Video Sequence (.edl)"
+    bl_label = "Import Video Sequence"
 
     def execute(self, context):
         import os
@@ -269,41 +316,6 @@ class EDLImportInfo(bpy.types.PropertyGroup):
             name="Global Frame Offset",
             )
 
-# ----------------------------------------------------------------------------
-# Panel to show EDL Import UI
-
-
-class SEQUENCER_PT_import_edl(bpy.types.Panel):
-    bl_label = "EDL Import"
-    bl_space_type = 'SEQUENCE_EDITOR'
-    bl_region_type = 'UI'
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        edl_import_info = scene.edl_import_info
-
-        layout.operator(ImportEDL.bl_idname)
-
-        col = layout.column(align=True)
-        col.prop(edl_import_info, "frame_offset")
-        col.prop(edl_import_info, "filepath", text="")
-        col.operator(ReloadEDL.bl_idname, icon='FILE_REFRESH')
-
-        box = layout.box()
-        reel = None
-        for reel in scene.edl_import_info.reels:
-            col = box.column(align=True)
-            col.label(text=reel.name)
-            col.prop(reel, "filepath", text="")
-            col.prop(reel, "frame_offset")
-
-        if reel is None:
-            box.label("Empty (No EDL Data)")
-
-        box.operator(FindReelsEDL.bl_idname, icon='ERROR')
-
 
 def register():
     bpy.utils.register_class(ReloadEDL)
@@ -315,6 +327,7 @@ def register():
     bpy.utils.register_class(EDLReelInfo)
     bpy.utils.register_class(EDLImportInfo)
     bpy.types.Scene.edl_import_info = PointerProperty(type=EDLImportInfo)
+    bpy.types.Scene.edl_reel_info = PointerProperty(type=EDLReelInfo)
 
 
 def unregister():
@@ -327,3 +340,4 @@ def unregister():
     bpy.utils.unregister_class(EDLImportInfo)
     bpy.utils.unregister_class(EDLReelInfo)
     del bpy.types.Scene.edl_import_info
+    del bpy.types.Scene.edl_reel_info
