@@ -20,7 +20,7 @@
 
 bl_info = {
     "name": "Import EDL",
-    "author": "Campbell Barton",
+    "author": "Campbell Barton, tintwotin",
     "version": (1, 0),
     "blender": (2, 80, 0),
     "location": "Sequencer -> Track View Properties",
