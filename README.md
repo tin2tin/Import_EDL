@@ -1,5 +1,6 @@
 # Introduction
-Imports Video and Audio into the sequencer using an EDL file.
+Imports Video and Audio into the sequencer using an EDL file. 
+Original add-on by Campbell Barton. Updated to 2.8+ by tintwotin.
 
 # Usage
 Instructions
