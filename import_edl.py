@@ -64,8 +64,6 @@ def scale_meta_speed(sequence_editor, strip_list, strip_movie, scale):
         strip_speed.multiply_speed = 1.0 / scale
         strip_meta.frame_offset_end = strip_movie.frame_duration - int(strip_movie.frame_duration * scale)
 
-    strip_speed.update()
-    strip_meta.update()
     return strip_meta
 
 
