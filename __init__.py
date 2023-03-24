@@ -201,7 +201,7 @@ class FindReelsEDL(Operator):
             reel_names_list += [reel_filepath.replace("_", " ")
                                 for reel_filepath in reel_names_list
                                 if "_" in reel_filepath]
-            reel_names.update(reel_names_list)
+            #reel_names.update(reel_names_list)
 
         # debug info
         print("Searching or %d reels" % len(bl_reels_search))
